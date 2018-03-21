@@ -14,10 +14,10 @@ class DistoLeicaModel {
         }
 
         @FXBindable
-        String address = ""
+        String address = "E4:AB:5B:F9:99:30"
 
         @FXBindable
-        String command = ""
+        String command = "g"
 
         @FXBindable
         String output = ""

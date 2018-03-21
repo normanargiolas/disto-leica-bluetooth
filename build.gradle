@@ -67,6 +67,8 @@ jfx {
 }
 
 dependencies {
+    compile files('./libs/tinyb.jar')
+
     compile "org.codehaus.griffon:griffon-guice:${griffon.version}"
 
     runtime "org.slf4j:slf4j-simple:${slf4jVersion}"

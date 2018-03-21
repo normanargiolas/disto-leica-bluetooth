@@ -44,3 +44,9 @@ If you prefer building with Maven then execute the following commands
     mvn -Prun
 
 Don't forget to add any extra JAR dependencies to `pom.xml`!
+
+
+Common ERROR:
+
+java.lang.UnsatisfiedLinkError: no tinyb in java.library.path
+Environment variables: LD_LIBRARY_PATH=/media/Dati/personal/bluetooth/BlueSpike/libs/usr/local/lib/
