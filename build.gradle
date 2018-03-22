@@ -67,7 +67,7 @@ jfx {
 }
 
 dependencies {
-    compile files('./libs/tinyb.jar')
+    compile files('./libs/usr/local/lib/java/tinyb.jar')
 
 //// https://mvnrepository.com/artifact/org.sputnikdev/bluetooth-manager-tinyb
 //    compile group: 'org.sputnikdev', name: 'bluetooth-manager-tinyb', version: '1.3.1'

@@ -1,0 +1,11 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: tinyb
+Description: Tiny BLE library
+Version: 0.5.1
+
+Libs: -L${libdir} -ltinyb
+Cflags: -I${includedir}
