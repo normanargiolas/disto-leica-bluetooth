@@ -15,7 +15,6 @@ import tinyb.BluetoothDevice
 
 import javax.annotation.Nonnull
 
-import static javafx.application.Platform.runLater
 
 @ArtifactProviderFor(GriffonController)
 class DistoLeicaController extends AbstractController {
@@ -42,7 +41,7 @@ class DistoLeicaController extends AbstractController {
 
     //todo check for garbage thread
     void onShutdownStart(application) {
-        println "${application.configuration['application.title']} is shutting down"
+        Disconnected(null)
     }
 
     private updateUI(event) {
@@ -51,6 +50,7 @@ class DistoLeicaController extends AbstractController {
             void run() {
 
                 Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+                Button commandBTN = view.getGridPane().lookup(SelectorView.COMMAND_BTN.getSelector())
 
                 switch (event) {
                     case EVENT_CONNECTED:
@@ -61,6 +61,8 @@ class DistoLeicaController extends AbstractController {
                         break
                     case EVENT_DISCONNECTED:
                         connectBTN.setDisable(false)
+                        commandBTN.setDisable(false)
+
                         connectBTN.setText('Connetti')
                         isConnect = false
                         logAction("Disconnected!")
@@ -119,10 +121,15 @@ class DistoLeicaController extends AbstractController {
     }
 
     private void logAction(String msg) {
-        TextArea outputText = view.getGridPane().lookup(SelectorView.OUTPUT_TXTAREA.getSelector())
+        Platform.runLater(new Runnable() {
+            @Override
+            void run() {
+                TextArea outputText = view.getGridPane().lookup(SelectorView.OUTPUT_TXTAREA.getSelector())
 
-        outputText.appendText(msg + "\n")
-        outputText.setScrollTop(Double.MAX_VALUE)
+                outputText.appendText(msg + "\n")
+                outputText.setScrollTop(Double.MAX_VALUE)
+            }
+        })
     }
 
     @Override
@@ -149,48 +156,20 @@ class DistoLeicaController extends AbstractController {
     @Override
     void Connected(BluetoothDevice sensor) {
         log.info("Connected")
-
-//        Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
-
         application.eventRouter.publishEventAsync(EVENT_CONNECTED)
-
-//        Platform.runLater(new Runnable() {
-//            @Override
-//            void run() {
-//                // if you change the UI, do it here !
-//                connectBTN.setDisable(false)
-//                connectBTN.setText('Disconnetti')
-//                isConnect = true
-//                logAction("Connected!")
-//            }
-//        })
     }
 
     @Override
     void Disconnected(BluetoothDevice sensor) {
         log.info("Disconnected")
-
         application.eventRouter.publishEventAsync(EVENT_DISCONNECTED)
-
-
-//        Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
-
-//        Platform.runLater(new Runnable() {
-//            @Override
-//            void run() {
-//                // if you change the UI, do it here !
-//                connectBTN.setDisable(false)
-//                connectBTN.setText('Connetti')
-//                isConnect = false
-//                logAction("Disconnected!")
-//            }
-//        })
     }
 
     @Override
     void DeviceNotConnected(BluetoothDevice sensor) {
         log.info("DeviceNotConnected")
         logAction("Device not connected!")
+        Disconnected(null)
     }
 
     @Override

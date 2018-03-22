@@ -77,42 +77,50 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
 //            List<BluetoothGattService> bluetoothServices = null;
 //            Duration time = Duration.parse("PT4.0S");
 
-            BluetoothGattService distoService = null;
             try {
-                distoService = getService(mSensor, DISTOtransfer.DISTO_SERVICE.toString());
-            } catch (InterruptedException e) {
-                //todo return this exception
-                e.printStackTrace();
-            }
 
-            if (distoService == null) {
-                System.err.println("This device does not have the service we are looking for.");
-                mSensor.disconnect();
-                mListener.ServiceNotFound(mSensor, DISTOtransfer.DISTO_SERVICE);
-            } else {
-                System.out.println("Found service " + distoService.getUUID());
-                BluetoothGattCharacteristic distanceCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE.toString());
 
-                if (!isEnableValueNotificationFlag) {
-                    distanceCharacteristic.enableValueNotifications(valueNotification);
-                    isEnableValueNotificationFlag = true;
-                }
-
-                BluetoothGattCharacteristic commandMeasureCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_COMMAND.toString());
-
-                // 'g' = {0x67};
-                byte[] byteCommand = command.getBytes();
-                boolean resp = commandMeasureCharacteristic.writeValue(byteCommand);
-
+                BluetoothGattService distoService = null;
                 try {
-                    Thread.sleep(300);
+                    distoService = getService(mSensor, DISTOtransfer.DISTO_SERVICE.toString());
                 } catch (InterruptedException e) {
+                    //todo return this exception
                     e.printStackTrace();
                 }
-                byte[] val = distanceCharacteristic.readValue();
-                float distance = ByteBuffer.wrap(val).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-                mListener.GetMeasurament(distance);
+                if (distoService == null) {
+                    System.err.println("This device does not have the service we are looking for.");
+                    mSensor.disconnect();
+                    mListener.ServiceNotFound(mSensor, DISTOtransfer.DISTO_SERVICE);
+                } else {
+                    System.out.println("Found service " + distoService.getUUID());
+                    BluetoothGattCharacteristic distanceCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE.toString());
+
+                    if (!isEnableValueNotificationFlag) {
+                        distanceCharacteristic.enableValueNotifications(valueNotification);
+                        isEnableValueNotificationFlag = true;
+                    }
+
+                    BluetoothGattCharacteristic commandMeasureCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_COMMAND.toString());
+
+                    // 'g' = {0x67};
+                    byte[] byteCommand = command.getBytes();
+                    boolean resp = commandMeasureCharacteristic.writeValue(byteCommand);
+
+                    try {
+                        Thread.sleep(300);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    byte[] val = distanceCharacteristic.readValue();
+                    float distance = ByteBuffer.wrap(val).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+
+                    mListener.GetMeasurament(distance);
+                }
+
+            } catch (Exception e) {
+                mListener.DeviceNotConnected(mSensor);
+//                e.printStackTrace();
             }
 
         };
