@@ -26,9 +26,8 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
     private static boolean isEnableValueNotificationFlag = false;
 
 
-
     private static final long SEARCH_DEVICE_TIMEOUT = 5; //searching device time in seconds
-    private static final long GET_DEVICE_TIME = 20; //get list of device
+    private static final long GET_DEVICE_TIME = 5; //get list of device
 
     static boolean isConnected = false;
     static boolean running = true;
@@ -91,33 +90,32 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
                 System.err.println("This device does not have the service we are looking for.");
                 mSensor.disconnect();
                 mListener.ServiceNotFound(mSensor, DISTOtransfer.DISTO_SERVICE);
+            } else {
+                System.out.println("Found service " + distoService.getUUID());
+                BluetoothGattCharacteristic distanceCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE.toString());
 
-                System.exit(-1);
+                if (!isEnableValueNotificationFlag) {
+                    distanceCharacteristic.enableValueNotifications(valueNotification);
+                    isEnableValueNotificationFlag = true;
+                }
+
+                BluetoothGattCharacteristic commandMeasureCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_COMMAND.toString());
+
+                // 'g' = {0x67};
+                byte[] byteCommand = command.getBytes();
+                boolean resp = commandMeasureCharacteristic.writeValue(byteCommand);
+
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                byte[] val = distanceCharacteristic.readValue();
+                float distance = ByteBuffer.wrap(val).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+
+                mListener.GetMeasurament(distance);
             }
-            System.out.println("Found service " + distoService.getUUID());
 
-            BluetoothGattCharacteristic distanceCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_DISTANCE.toString());
-
-            if (!isEnableValueNotificationFlag) {
-                distanceCharacteristic.enableValueNotifications(valueNotification);
-                isEnableValueNotificationFlag = true;
-            }
-
-            BluetoothGattCharacteristic commandMeasureCharacteristic = getCharacteristic(distoService, DISTOtransfer.DISTO_CHARACTERISTIC_COMMAND.toString());
-
-            // 'g' = {0x67};
-            byte[] byteCommand = command.getBytes();
-            boolean resp = commandMeasureCharacteristic.writeValue(byteCommand);
-
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            byte[] val = distanceCharacteristic.readValue();
-            float distance = ByteBuffer.wrap(val).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-
-            mListener.GetMeasurament(distance);
         };
         Thread thread = new Thread(task);
         thread.setName("Execute_BluetoothLeica_thread");
@@ -131,61 +129,62 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
     public Boolean connect() {
 
         Runnable task = () -> {
-            String threadName = Thread.currentThread().getName();
-            System.out.println("Inizio " + threadName);
-            /*
-             * To start looking of the device, we first must initialize the TinyB library. The way of interacting with the
-             * library is through the BluetoothManager. There can be only one BluetoothManager at one time, and the
-             * reference to it is obtained through the getBluetoothManager method.
-             */
-            BluetoothManager manager = BluetoothManager.getBluetoothManager();
-
-            /*
-             * The manager will try to initialize a BluetoothAdapter if any adapter is present in the system. To initialize
-             * discovery we can call startDiscovery, which will put the default adapter in discovery mode.
-             */
-            boolean discoveryStarted = manager.startDiscovery();
-
-            System.out.println("The discovery started: " + (discoveryStarted ? "true" : "false"));
-            mSensor = getDevice(mDeviceAddress);
-
-            /*
-             * After we find the device we can stop looking for other devices.
-             */
             try {
-                manager.stopDiscovery();
-            } catch (BluetoothException e) {
-                log.info("Discovery could not be stopped.");
-            }
+                String threadName = Thread.currentThread().getName();
+                System.out.println("Inizio " + threadName);
+                /*
+                 * To start looking of the device, we first must initialize the TinyB library. The way of interacting with the
+                 * library is through the BluetoothManager. There can be only one BluetoothManager at one time, and the
+                 * reference to it is obtained through the getBluetoothManager method.
+                 */
+                BluetoothManager manager = BluetoothManager.getBluetoothManager();
 
-            if (mSensor != null) {
+                /*
+                 * The manager will try to initialize a BluetoothAdapter if any adapter is present in the system. To initialize
+                 * discovery we can call startDiscovery, which will put the default adapter in discovery mode.
+                 */
+                boolean discoveryStarted = manager.startDiscovery();
+
+                System.out.println("The discovery started: " + (discoveryStarted ? "true" : "false"));
+                mSensor = getDevice(mDeviceAddress);
+
+                /*
+                 * After we find the device we can stop looking for other devices.
+                 */
                 try {
-                    boolean con = mSensor.connect();
-                    if (con) {
-                        System.out.println("Sensor with the provided address connected");
-                        mListener.Connected(mSensor);
-                        isConnected = true;
-
-                        if (!isEnableLeicaNotificationFlag) {
-                            mSensor.enableConnectedNotifications(this);
-                            isEnableLeicaNotificationFlag = true;
-                        }
-
-                    } else {
-                        System.out.println("Could not connect device.");
-                        mListener.DeviceNotConnected(mSensor);
-                    }
+                    manager.stopDiscovery();
                 } catch (BluetoothException e) {
-                    log.info("Unable to connect device: " + e.getMessage());
-                    mListener.UnableToConnect();
+                    log.info("Discovery could not be stopped.");
                 }
 
-                //prevent shutdown application
-                addShutdownHook();
+                if (mSensor != null) {
+                    try {
+                        boolean con = mSensor.connect();
+                        if (con) {
+                            System.out.println("Sensor with the provided address connected");
+                            mListener.Connected(mSensor);
+                            isConnected = true;
 
+                            if (!isEnableLeicaNotificationFlag) {
+                                mSensor.enableConnectedNotifications(this);
+                                isEnableLeicaNotificationFlag = true;
+                            }
+                            addShutdownHook();
+                        } else {
+                            System.out.println("Could not connect device.");
+                            mListener.DeviceNotConnected(mSensor);
+                        }
+                    } catch (BluetoothException e) {
+                        log.info("Unable to connect device: " + e.getMessage());
+                        mListener.UnableToConnect();
+                    }
+                }
+
+                log.info("Fine connect thread" + Thread.currentThread().getName());
+            } catch (Exception e) {
+                log.info("Unknown exception: " + e.getMessage());
+                mListener.UnableToConnect();
             }
-
-            log.info("Fine connect thread" + Thread.currentThread().getName());
         };
 
         Thread thread = new Thread(task);
@@ -207,14 +206,16 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
                 isEnableLeicaNotificationFlag = false;
                 isEnableValueNotificationFlag = false;
 
-                mLock.lock();
-                try {
-                    mCondition.signalAll();
-                } finally {
-                    mLock.unlock();
-                    if (mSensor != null) {
-                        mSensor.disconnect();
-                        log.info("ShutdownHook " + Thread.currentThread().getName());
+                if (mLock != null) {
+                    mLock.lock();
+                    try {
+                        mCondition.signalAll();
+                    } finally {
+                        mLock.unlock();
+                        if (mSensor != null) {
+                            mSensor.disconnect();
+                            log.info("ShutdownHook " + Thread.currentThread().getName());
+                        }
                     }
                 }
             }
@@ -237,16 +238,20 @@ public class BluetoothLeica implements BluetoothNotification<Boolean>, Serializa
     }
 
     public boolean disconnect(String deviceAddress) {
+        Runnable task = () -> {
+            if (deviceAddress.equals(mDeviceAddress) && mSensor != null) {
+                isConnected = false;
+                mSensor.disconnect();
+                mListener.Disconnected(mSensor);
+            }
+        };
+        Thread thread = new Thread(task);
+        thread.setName("Connect_BluetoothLeica_thread");
+        thread.start();
+
         log.info("Fine " + Thread.currentThread().getName());
-        if (deviceAddress.equals(mDeviceAddress) && mSensor != null) {
 
-            isConnected = false;
-            mSensor.disconnect();
-
-            mListener.Disconnected(mSensor);
-            return true;
-        }
-        return false;
+        return true;
     }
 
     /*

@@ -1,8 +1,8 @@
 package nor.example.leica
 
+import griffon.core.RunnableWithArgs
 import griffon.core.artifact.GriffonController
 import griffon.core.controller.ControllerAction
-import griffon.inject.MVCMember
 import griffon.metadata.ArtifactProviderFor
 import javafx.application.Platform
 import javafx.scene.control.Button
@@ -15,25 +15,71 @@ import tinyb.BluetoothDevice
 
 import javax.annotation.Nonnull
 
+import static javafx.application.Platform.runLater
+
 @ArtifactProviderFor(GriffonController)
-class DistoLeicaController implements LeicaNotification {
+class DistoLeicaController extends AbstractController {
 
     final static Logger log = LoggerFactory.getLogger(DistoLeicaController.class)
 
     private BluetoothLeica bluetoothLeica
     static boolean isConnect = false
 
-    @MVCMember
-    @Nonnull
-    private DistoLeicaView view
 
-    @MVCMember
-    @Nonnull
-    DistoLeicaModel model
+    @Override
+    void mvcGroupInit(@Nonnull Map<String, Object> args) {
+        super.mvcGroupInit(args)
+
+        application.eventRouter.addEventListener(EVENT_CONNECTED, {
+            updateUI(EVENT_CONNECTED)
+        } as RunnableWithArgs)
+
+        application.eventRouter.addEventListener(EVENT_DISCONNECTED, {
+            updateUI(EVENT_DISCONNECTED)
+        } as RunnableWithArgs)
+
+    }
+
+    //todo check for garbage thread
+    void onShutdownStart(application) {
+        println "${application.configuration['application.title']} is shutting down"
+    }
+
+    private updateUI(event) {
+        Platform.runLater(new Runnable() {
+            @Override
+            void run() {
+
+                Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+
+                switch (event) {
+                    case EVENT_CONNECTED:
+                        connectBTN.setDisable(false)
+                        connectBTN.setText('Disconnetti')
+                        isConnect = true
+                        logAction("Connected!")
+                        break
+                    case EVENT_DISCONNECTED:
+                        connectBTN.setDisable(false)
+                        connectBTN.setText('Connetti')
+                        isConnect = false
+                        logAction("Disconnected!")
+                        break
+                    default:
+                        log.info("Wow")
+                        break
+                }
+            }
+        })
+
+    }
 
     @ControllerAction
     def execute() {
         log.info("execute")
+
+        Button commandBTN = view.getGridPane().lookup(SelectorView.COMMAND_BTN.getSelector())
+        commandBTN.setDisable(true)
 
         String command = model.sampleForm.getCommand()
         if (isConnect == true) {
@@ -41,9 +87,11 @@ class DistoLeicaController implements LeicaNotification {
                 bluetoothLeica.execute(command)
                 logAction("Executing command [${command}] ...")
             } else {
+                commandBTN.setDisable(false)
                 logAction("No command selected!")
             }
-        }else{
+        } else {
+            commandBTN.setDisable(false)
             logAction("No device connected!")
         }
     }
@@ -52,11 +100,18 @@ class DistoLeicaController implements LeicaNotification {
     def connection() {
         log.info("connection")
 
+        Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+        connectBTN.setDisable(true)
+
         String deviceAddress = model.sampleForm.getAddress()
         if (isConnect == false) {
             logAction("Connecting...")
             bluetoothLeica = BluetoothLeica.getInstance(this, deviceAddress, this)
+
+
             bluetoothLeica.connect()
+
+
         } else {
             logAction("Disconnecting...")
             bluetoothLeica.disconnect(deviceAddress)
@@ -64,9 +119,10 @@ class DistoLeicaController implements LeicaNotification {
     }
 
     private void logAction(String msg) {
-        TextArea text = view.getGridPane().lookup(SelectorView.OUTPUT_TXTAREA.getSelector())
-        text.appendText(msg + "\n")
-        text.setScrollTop(Double.MAX_VALUE)
+        TextArea outputText = view.getGridPane().lookup(SelectorView.OUTPUT_TXTAREA.getSelector())
+
+        outputText.appendText(msg + "\n")
+        outputText.setScrollTop(Double.MAX_VALUE)
     }
 
     @Override
@@ -94,34 +150,41 @@ class DistoLeicaController implements LeicaNotification {
     void Connected(BluetoothDevice sensor) {
         log.info("Connected")
 
-        Button button = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+//        Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
 
-        Platform.runLater(new Runnable() {
-            @Override
-            void run() {
-                // if you change the UI, do it here !
-                button.setText('Disconnetti')
-                isConnect = true
-                logAction("Connected!")
-            }
-        })
+        application.eventRouter.publishEventAsync(EVENT_CONNECTED)
+
+//        Platform.runLater(new Runnable() {
+//            @Override
+//            void run() {
+//                // if you change the UI, do it here !
+//                connectBTN.setDisable(false)
+//                connectBTN.setText('Disconnetti')
+//                isConnect = true
+//                logAction("Connected!")
+//            }
+//        })
     }
 
     @Override
     void Disconnected(BluetoothDevice sensor) {
         log.info("Disconnected")
 
-        Button button = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+        application.eventRouter.publishEventAsync(EVENT_DISCONNECTED)
 
-        Platform.runLater(new Runnable() {
-            @Override
-            void run() {
-                // if you change the UI, do it here !
-                button.setText('Connetti')
-                isConnect = false
-                logAction("Disconnected!")
-            }
-        })
+
+//        Button connectBTN = view.getGridPane().lookup(SelectorView.CONNECT_BTN.getSelector())
+
+//        Platform.runLater(new Runnable() {
+//            @Override
+//            void run() {
+//                // if you change the UI, do it here !
+//                connectBTN.setDisable(false)
+//                connectBTN.setText('Connetti')
+//                isConnect = false
+//                logAction("Disconnected!")
+//            }
+//        })
     }
 
     @Override
@@ -134,6 +197,7 @@ class DistoLeicaController implements LeicaNotification {
     void UnableToConnect() {
         log.info("UnableToConnect")
         logAction("Unable to connect!")
+        Disconnected(null)
     }
 
     @Override
@@ -146,6 +210,10 @@ class DistoLeicaController implements LeicaNotification {
     @Override
     void GetMeasurament(float measurament) {
         log.info("GetMeasurament")
+
+        Button commandBTN = view.getGridPane().lookup(SelectorView.COMMAND_BTN.getSelector())
+        commandBTN.setDisable(false)
+
         logAction("Measurament: ${measurament}")
     }
 
@@ -156,4 +224,5 @@ class DistoLeicaController implements LeicaNotification {
         logAction("Service: ${service} not found!")
         Disconnected(null)
     }
+
 }

@@ -85,7 +85,7 @@ class DistoLeicaView extends AbstractDistoLeicaView {
                     margin: formItemMargin,
                     text: bind(model.sampleForm.address()))
 
-            button(id:SelectorView.CONNECT_BTN.getValue(),
+            button(id: SelectorView.CONNECT_BTN.getValue(),
                     column: 2, row: 1,
                     margin: formItemMargin,
                     text: getMessage("view.distoleica.sampleform.connect.button.caption"),
@@ -100,7 +100,8 @@ class DistoLeicaView extends AbstractDistoLeicaView {
                     margin: formItemMargin,
                     text: bind(model.sampleForm.command()))
 
-            button(column: 2, row: 2,
+            button(id: SelectorView.COMMAND_BTN.getValue(),
+                    column: 2, row: 2,
                     margin: formItemMargin,
                     text: getMessage("view.distoleica.sampleform.command.button.caption"),
                     tooltip: getToolTip("view.distoleica.sampleform.command.button.tooltip"),
